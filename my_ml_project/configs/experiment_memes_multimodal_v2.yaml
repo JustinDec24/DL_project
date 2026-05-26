@@ -1,0 +1,40 @@
+project_name: hateful_memes_multimodal_v2
+
+dataset:
+  hf_name: limjiayi/hateful_memes_expanded
+  train_split: train
+  val_split: validation
+  test_split: test
+
+task:
+  num_classes: 2
+  class_names:
+    - not_hateful
+    - hateful
+
+model:
+  clip_model: openai/clip-vit-base-patch32
+  text_model: GroNLP/hateBERT
+  max_length: 77
+  dropout: 0.1
+  freeze_encoders: true
+  unfreeze_last_n_layers: 0
+  use_image: true
+  use_text: true
+
+training:
+  batch_size: 32
+  learning_rate: 2e-4
+  encoder_lr_multiplier: 1.0
+  epochs: 10
+  weight_decay: 0.01
+  warmup_ratio: 0.06
+  max_grad_norm: 1.0
+  use_focal_loss: true
+  focal_gamma: 2.0
+
+paths:
+  results_dir: results/memes_multimodal_v2
+
+experiment:
+  seed: 42

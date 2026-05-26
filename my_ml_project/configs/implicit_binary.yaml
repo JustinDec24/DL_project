@@ -1,0 +1,38 @@
+project_name: implicit_hate_binary_detection
+
+data:
+  primary_dataset: implicit_hate_plus_hatexplain_other
+  train_file: implicit_binary_train.jsonl
+  validation_file: implicit_binary_validation.jsonl
+  test_file: implicit_binary_test.jsonl
+
+task:
+  type: classification
+  num_classes: 2
+  class_names:
+    - other
+    - implicit_hate
+
+model:
+  backbone: roberta-base
+  max_length: 128
+  dropout: 0.1
+
+training:
+  batch_size: 16
+  learning_rate: 2e-5
+  epochs: 3
+  weight_decay: 0.01
+  use_class_weights: false
+
+paths:
+  raw_data_dir: data/raw
+  interim_data_dir: data/interim
+  processed_data_dir: data/processed
+  results_dir: results
+
+experiment:
+  phase: phase2_implicit_binary
+  seed: 42
+  use_rationales: false
+  use_auxiliary_loss: false

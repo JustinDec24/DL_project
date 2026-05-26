@@ -1,0 +1,249 @@
+{
+  "train": {
+    "id": "23107796_gab",
+    "annotators": {
+      "label": [
+        0,
+        2,
+        2
+      ],
+      "annotator_id": [
+        203,
+        204,
+        233
+      ],
+      "target": [
+        [
+          "Hindu",
+          "Islam"
+        ],
+        [
+          "Hindu",
+          "Islam"
+        ],
+        [
+          "Hindu",
+          "Islam",
+          "Other"
+        ]
+      ]
+    },
+    "rationales": [
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "post_tokens": [
+      "u",
+      "really",
+      "think",
+      "i",
+      "would",
+      "not",
+      "have",
+      "been",
+      "raped",
+      "by",
+      "feral",
+      "hindu",
+      "or",
+      "muslim",
+      "back",
+      "in",
+      "india",
+      "or",
+      "bangladesh",
+      "and",
+      "a",
+      "neo",
+      "nazi",
+      "would",
+      "rape",
+      "me",
+      "as",
+      "well",
+      "just",
+      "to",
+      "see",
+      "me",
+      "cry"
+    ]
+  },
+  "validation": {
+    "id": "1178613994371928065_twitter",
+    "annotators": {
+      "label": [
+        1,
+        1,
+        1
+      ],
+      "annotator_id": [
+        83,
+        3,
+        51
+      ],
+      "target": [
+        [
+          "None"
+        ],
+        [
+          "None"
+        ],
+        [
+          "None"
+        ]
+      ]
+    },
+    "rationales": [],
+    "post_tokens": [
+      "me",
+      "getting",
+      "books",
+      "from",
+      "the",
+      "library",
+      "about",
+      "queer",
+      "cowboys",
+      "and",
+      "homoeroticism",
+      "in",
+      "cinema",
+      "instead",
+      "of",
+      "anything",
+      "useful",
+      "for",
+      "my",
+      "thesis"
+    ]
+  },
+  "test": {
+    "id": "1178610029273976833_twitter",
+    "annotators": {
+      "label": [
+        1,
+        1,
+        1
+      ],
+      "annotator_id": [
+        9,
+        17,
+        64
+      ],
+      "target": [
+        [
+          "None"
+        ],
+        [
+          "None"
+        ],
+        [
+          "None"
+        ]
+      ]
+    },
+    "rationales": [],
+    "post_tokens": [
+      "<user>",
+      "men",
+      "can",
+      "not",
+      "be",
+      "raped",
+      "can",
+      "not",
+      "be",
+      "abused",
+      "that",
+      "why",
+      "they",
+      "call",
+      "it",
+      "violence",
+      "against",
+      "women",
+      "and",
+      "children",
+      "because",
+      "men",
+      "are",
+      "always",
+      "the",
+      "perpetrators",
+      "women",
+      "come",
+      "first",
+      "even",
+      "before",
+      "children"
+    ]
+  }
+}

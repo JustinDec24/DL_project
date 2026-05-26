@@ -1,0 +1,36 @@
+project_name: hateful_memes_imageonly
+
+dataset:
+  hf_name: limjiayi/hateful_memes_expanded
+  train_split: train
+  val_split: validation
+  test_split: test
+
+task:
+  num_classes: 2
+  class_names:
+    - not_hateful
+    - hateful
+
+model:
+  clip_model: openai/clip-vit-base-patch32
+  text_model: GroNLP/hateBERT
+  max_length: 77
+  dropout: 0.1
+  freeze_encoders: true
+  use_image: true
+  use_text: false
+
+training:
+  batch_size: 32
+  learning_rate: 2e-4
+  epochs: 10
+  weight_decay: 0.01
+  warmup_ratio: 0.06
+  max_grad_norm: 1.0
+
+paths:
+  results_dir: results/memes_imageonly
+
+experiment:
+  seed: 42

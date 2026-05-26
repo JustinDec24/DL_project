@@ -1,0 +1,96 @@
+{
+  "builder_name": "hatexplain",
+  "citation": "@misc{mathew2020hatexplain,\n      title={HateXplain: A Benchmark Dataset for Explainable Hate Speech Detection},\n      author={Binny Mathew and Punyajoy Saha and Seid Muhie Yimam and Chris Biemann and Pawan Goyal and Animesh Mukherjee},\n      year={2020},\n      eprint={2012.10289},\n      archivePrefix={arXiv},\n      primaryClass={cs.CL}\n}\n",
+  "config_name": "plain_text",
+  "dataset_name": "hatexplain",
+  "dataset_size": 8884294,
+  "description": "Hatexplain is the first benchmark hate speech dataset covering multiple aspects of the issue. Each post in the dataset is annotated from three different perspectives: the basic, commonly used 3-class classification (i.e., hate, offensive or normal), the target community (i.e., the community that has been the victim of hate speech/offensive speech in the post), and the rationales, i.e., the portions of the post on which their labelling decision (as hate, offensive or normal) is based.\n",
+  "download_checksums": {
+    "https://raw.githubusercontent.com/punyajoy/HateXplain/master/Data/dataset.json": {
+      "num_bytes": 12256170,
+      "checksum": null
+    },
+    "https://raw.githubusercontent.com/punyajoy/HateXplain/master/Data/post_id_divisions.json": {
+      "num_bytes": 591921,
+      "checksum": null
+    }
+  },
+  "download_size": 12848091,
+  "features": {
+    "id": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "annotators": {
+      "feature": {
+        "label": {
+          "names": [
+            "hatespeech",
+            "normal",
+            "offensive"
+          ],
+          "_type": "ClassLabel"
+        },
+        "annotator_id": {
+          "dtype": "int32",
+          "_type": "Value"
+        },
+        "target": {
+          "feature": {
+            "dtype": "string",
+            "_type": "Value"
+          },
+          "_type": "Sequence"
+        }
+      },
+      "_type": "Sequence"
+    },
+    "rationales": {
+      "feature": {
+        "feature": {
+          "dtype": "int32",
+          "_type": "Value"
+        },
+        "_type": "Sequence"
+      },
+      "_type": "Sequence"
+    },
+    "post_tokens": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    }
+  },
+  "homepage": "",
+  "license": "cc-by-4.0",
+  "size_in_bytes": 21732385,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 7114650,
+      "num_examples": 15383,
+      "dataset_name": "hatexplain"
+    },
+    "validation": {
+      "name": "validation",
+      "num_bytes": 884900,
+      "num_examples": 1922,
+      "dataset_name": "hatexplain"
+    },
+    "test": {
+      "name": "test",
+      "num_bytes": 884744,
+      "num_examples": 1924,
+      "dataset_name": "hatexplain"
+    }
+  },
+  "version": {
+    "version_str": "1.0.0",
+    "description": "",
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  }
+}

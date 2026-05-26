@@ -1,0 +1,44 @@
+project_name: hatexplain_v4_hatebert
+
+data:
+  primary_dataset: hatexplain
+  train_file: train.jsonl
+  validation_file: validation.jsonl
+  test_file: test.jsonl
+
+task:
+  type: classification
+  num_classes: 3
+  class_names:
+    - hatespeech
+    - normal
+    - offensive
+
+model:
+  backbone: GroNLP/hateBERT
+  max_length: 128
+  dropout: 0.1
+
+training:
+  batch_size: 16
+  learning_rate: 2e-5
+  epochs: 3
+  weight_decay: 0.01
+  use_class_weights: true
+  use_label_confidence: true
+  use_focal_loss: true
+  focal_gamma: 2.0
+  warmup_ratio: 0.06
+  max_grad_norm: 1.0
+
+paths:
+  raw_data_dir: data/raw
+  interim_data_dir: data/interim
+  processed_data_dir: data/processed
+  results_dir: results/v4_hatebert
+
+experiment:
+  phase: v4_hatebert
+  seed: 42
+  use_rationales: false
+  use_auxiliary_loss: false

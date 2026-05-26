@@ -1,0 +1,45 @@
+project_name: hatexplain_v5_group_aware
+
+data:
+  primary_dataset: hatexplain
+  train_file: train.jsonl
+  validation_file: validation.jsonl
+  test_file: test.jsonl
+
+task:
+  type: classification
+  num_classes: 3
+  class_names:
+    - hatespeech
+    - normal
+    - offensive
+
+model:
+  backbone: GroNLP/hateBERT
+  max_length: 128
+  dropout: 0.1
+
+training:
+  batch_size: 16
+  learning_rate: 2e-5
+  epochs: 3
+  weight_decay: 0.01
+  use_class_weights: false
+  use_label_confidence: true
+  use_focal_loss: true
+  focal_gamma: 2.0
+  use_group_weights: true       # new: inverse-frequency weighting by (target_group, class)
+  warmup_ratio: 0.06
+  max_grad_norm: 1.0
+
+paths:
+  raw_data_dir: data/raw
+  interim_data_dir: data/interim
+  processed_data_dir: data/processed
+  results_dir: results/v5_group_aware
+
+experiment:
+  phase: v5_group_aware
+  seed: 42
+  use_rationales: false
+  use_auxiliary_loss: false

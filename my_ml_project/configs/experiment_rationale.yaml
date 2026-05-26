@@ -1,0 +1,40 @@
+project_name: hatexplain_rationale_supervision
+
+data:
+  primary_dataset: hatexplain
+  train_file: train.jsonl
+  validation_file: validation.jsonl
+  test_file: test.jsonl
+
+task:
+  type: classification
+  num_classes: 3
+  class_names:
+    - hatespeech
+    - normal
+    - offensive
+
+model:
+  backbone: roberta-base
+  max_length: 128
+  dropout: 0.1
+
+training:
+  batch_size: 16
+  learning_rate: 2e-5
+  epochs: 3
+  weight_decay: 0.01
+  use_class_weights: false
+  rationale_loss_weight: 0.1
+
+paths:
+  raw_data_dir: data/raw
+  interim_data_dir: data/interim
+  processed_data_dir: data/processed
+  results_dir: results
+
+experiment:
+  phase: rationale_supervision_3class
+  seed: 42
+  use_rationales: true
+  use_auxiliary_loss: false
