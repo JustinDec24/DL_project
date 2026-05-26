@@ -6,3 +6,5 @@ scikit-learn
 pandas
 numpy
 tqdm
+gradio
+pillow
