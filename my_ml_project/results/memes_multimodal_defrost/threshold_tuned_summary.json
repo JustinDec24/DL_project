@@ -1,0 +1,19 @@
+{
+  "model_type": "latefusion",
+  "checkpoint": "results/memes_multimodal_defrost\\checkpoints\\best_model.pt",
+  "val_best_threshold": 0.12000000000000001,
+  "val_best_f1": 0.6248012718600954,
+  "test_at_0.5": {
+    "threshold": 0.5,
+    "accuracy": 0.6026666666666667,
+    "f1_hateful": 0.3407079646017699,
+    "auroc": 0.6175703354105572
+  },
+  "test_at_tuned": {
+    "threshold": 0.12000000000000001,
+    "accuracy": 0.517,
+    "f1_hateful": 0.5993917611280066,
+    "auroc": 0.6175703354105572
+  },
+  "delta_f1": 0.25868379652623674
+}

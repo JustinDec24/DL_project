@@ -22,3 +22,6 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Model checkpoints — too large for git
+*.pt
