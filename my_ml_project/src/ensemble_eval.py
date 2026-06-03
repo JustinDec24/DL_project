@@ -33,17 +33,18 @@ from sklearn.metrics import (
 import torchvision.transforms.functional as TF
 
 from dataset_memes import HatefulMemesDataset
+from dataset_factory import build_meme_dataset
 from train_multimodal import collate_fn
 from threshold_tune import tune_threshold
 
 
-CKPT_FROZEN = "results/memes_multimodal/checkpoints/best_model.pt"
-CKPT_DEFROST = "results/memes_multimodal_defrost/checkpoints/best_model.pt"
-CKPT_CROSSATTN = "results/memes_crossattn/checkpoints/best_model.pt"
+CKPT_FROZEN = "results/harmeme_frozen/checkpoints/best_model.pt"
+CKPT_DEFROST = "results/harmeme_defrost/checkpoints/best_model.pt"
+CKPT_CROSSATTN = "results/harmeme_crossattn/checkpoints/best_model.pt"
 
-CFG_FROZEN = "configs/experiment_memes_multimodal.yaml"
-CFG_DEFROST = "configs/experiment_memes_defrost.yaml"
-CFG_CROSSATTN = "configs/experiment_memes_crossattn.yaml"
+CFG_FROZEN = "configs/experiment_harmeme_frozen.yaml"
+CFG_DEFROST = "configs/experiment_harmeme_defrost.yaml"
+CFG_CROSSATTN = "configs/experiment_harmeme_crossattn.yaml"
 
 
 def load_yaml(p):
@@ -56,7 +57,7 @@ def build_latefusion(cfg, device):
     return MultimodalMemeClassifier(
         clip_model_name=cfg["model"]["clip_model"],
         text_model_name=cfg["model"]["text_model"],
-        num_classes=2,
+        num_classes=cfg["task"].get("num_classes", 2),
         dropout=cfg["model"]["dropout"],
         freeze_encoders=cfg["model"]["freeze_encoders"],
         unfreeze_last_n_layers=cfg["model"].get("unfreeze_last_n_layers", 0),
@@ -70,7 +71,7 @@ def build_crossattn(cfg, device):
     return CrossAttentionMemeClassifier(
         clip_model_name=cfg["model"]["clip_model"],
         text_model_name=cfg["model"]["text_model"],
-        num_classes=2,
+        num_classes=cfg["task"].get("num_classes", 2),
         dropout=cfg["model"]["dropout"],
         freeze_encoders=cfg["model"]["freeze_encoders"],
         unfreeze_last_n_layers=cfg["model"].get("unfreeze_last_n_layers", 0),
@@ -166,24 +167,14 @@ def main():
     print("Device:", device)
     print("TTA enabled:", args.tta)
 
-    # Load shared config for dataset settings (they're identical for memes)
+    # Load shared config for dataset settings (they're identical across the three members).
     cfg = load_yaml(CFG_CROSSATTN)
-    hf_name = cfg["dataset"]["hf_name"]
-    val_split = cfg["dataset"]["val_split"]
-    test_split = cfg["dataset"]["test_split"]
-    local_img_dir = cfg["dataset"].get("local_img_dir", None)
-    strict_images = cfg["dataset"].get("strict_images", True)
     batch_size = cfg["training"]["batch_size"]
     class_names = cfg["task"]["class_names"]
-    max_length = cfg["model"]["max_length"]
-    clip_model = cfg["model"]["clip_model"]
-    text_model = cfg["model"]["text_model"]
 
     print("Loading datasets...")
-    val_ds = HatefulMemesDataset(hf_name, val_split, clip_model, text_model, max_length, True, True,
-                                 local_img_dir=local_img_dir, strict_images=strict_images)
-    test_ds = HatefulMemesDataset(hf_name, test_split, clip_model, text_model, max_length, True, True,
-                                  local_img_dir=local_img_dir, strict_images=strict_images)
+    val_ds = build_meme_dataset(cfg, "val")
+    test_ds = build_meme_dataset(cfg, "test")
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
     print(f"Val: {len(val_ds)} | Test: {len(test_ds)}")

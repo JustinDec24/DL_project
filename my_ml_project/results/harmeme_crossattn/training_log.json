@@ -1,0 +1,9 @@
+[
+  {"epoch": 1, "train_loss": 0.5477, "val_loss": 0.4344, "val_acc": 0.8079, "val_f1_hateful": 0.7018, "val_auc": 0.8745},
+  {"epoch": 2, "train_loss": 0.4175, "val_loss": 0.9146, "val_acc": 0.6384, "val_f1_hateful": 0.6444, "val_auc": 0.8687},
+  {"epoch": 3, "train_loss": 0.3060, "val_loss": 0.8570, "val_acc": 0.6610, "val_f1_hateful": 0.6667, "val_auc": 0.8814},
+  {"epoch": 4, "train_loss": 0.1989, "val_loss": 1.1060, "val_acc": 0.7345, "val_f1_hateful": 0.7152, "val_auc": 0.8414},
+  {"epoch": 5, "train_loss": 0.1439, "val_loss": 0.7643, "val_acc": 0.7345, "val_f1_hateful": 0.7117, "val_auc": 0.8351},
+  {"epoch": 6, "train_loss": 0.0992, "val_loss": 1.2965, "val_acc": 0.7571, "val_f1_hateful": 0.7190, "val_auc": 0.8469},
+  {"epoch": null, "note": "training crashed at end of epoch 6 due to disk-full during epoch_N.pt save; best_model.pt from epoch 3 is intact."}
+]

@@ -1,0 +1,50 @@
+project_name: hatexplain_v6_cf_augment
+
+# Same backbone + losses as Exp 14 (final HateBERT model), but the training
+# set is replaced by train_cf.jsonl produced by src/counterfactual_augment.py.
+# That file = original 15 383 rows + 12 080 counterfactual copies that swap
+# the targeted group term while keeping the label. Validation and test stay
+# unchanged so the bias gap measurement is comparable to Exp 14.
+
+data:
+  primary_dataset: hatexplain
+  train_file: train_cf.jsonl
+  validation_file: validation.jsonl
+  test_file: test.jsonl
+
+task:
+  type: classification
+  num_classes: 3
+  class_names:
+    - hatespeech
+    - normal
+    - offensive
+
+model:
+  backbone: GroNLP/hateBERT
+  max_length: 128
+  dropout: 0.1
+
+training:
+  batch_size: 16
+  learning_rate: 2e-5
+  epochs: 3
+  weight_decay: 0.01
+  use_class_weights: false
+  use_label_confidence: true
+  use_focal_loss: true
+  focal_gamma: 2.0
+  warmup_ratio: 0.06
+  max_grad_norm: 1.0
+
+paths:
+  raw_data_dir: data/raw
+  interim_data_dir: data/interim
+  processed_data_dir: data/processed
+  results_dir: results/v6_cf_augment
+
+experiment:
+  phase: v6_cf_augment
+  seed: 42
+  use_rationales: false
+  use_auxiliary_loss: false

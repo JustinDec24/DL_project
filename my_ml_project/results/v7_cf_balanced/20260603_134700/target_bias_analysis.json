@@ -1,0 +1,129 @@
+{
+  "overall": {
+    "n": 1924,
+    "accuracy": 0.6502,
+    "macro_f1": 0.6399,
+    "per_class_f1": {
+      "hatespeech": 0.7215,
+      "normal": 0.7083,
+      "offensive": 0.49
+    }
+  },
+  "per_group": {
+    "African": {
+      "n": 388,
+      "accuracy": 0.6289,
+      "macro_f1": 0.54,
+      "per_class_f1": {
+        "hatespeech": 0.7797,
+        "normal": 0.4583,
+        "offensive": 0.382
+      }
+    },
+    "Arab": {
+      "n": 90,
+      "accuracy": 0.6889,
+      "macro_f1": 0.5962,
+      "per_class_f1": {
+        "hatespeech": 0.8214,
+        "normal": 0.5385,
+        "offensive": 0.4286
+      }
+    },
+    "Asian": {
+      "n": 53,
+      "accuracy": 0.3774,
+      "macro_f1": 0.3668,
+      "per_class_f1": {
+        "hatespeech": 0.5128,
+        "normal": 0.4,
+        "offensive": 0.1875
+      }
+    },
+    "Caucasian": {
+      "n": 114,
+      "accuracy": 0.5526,
+      "macro_f1": 0.5292,
+      "per_class_f1": {
+        "hatespeech": 0.5789,
+        "normal": 0.6557,
+        "offensive": 0.3529
+      }
+    },
+    "Hispanic": {
+      "n": 44,
+      "accuracy": 0.6136,
+      "macro_f1": 0.4672,
+      "per_class_f1": {
+        "hatespeech": 0.8,
+        "normal": 0.2857,
+        "offensive": 0.3158
+      }
+    },
+    "Homosexual": {
+      "n": 223,
+      "accuracy": 0.6188,
+      "macro_f1": 0.6243,
+      "per_class_f1": {
+        "hatespeech": 0.6853,
+        "normal": 0.629,
+        "offensive": 0.5587
+      }
+    },
+    "Islam": {
+      "n": 238,
+      "accuracy": 0.5924,
+      "macro_f1": 0.5294,
+      "per_class_f1": {
+        "hatespeech": 0.73,
+        "normal": 0.5545,
+        "offensive": 0.3036
+      }
+    },
+    "Jewish": {
+      "n": 210,
+      "accuracy": 0.6381,
+      "macro_f1": 0.4741,
+      "per_class_f1": {
+        "hatespeech": 0.7986,
+        "normal": 0.3607,
+        "offensive": 0.2632
+      }
+    },
+    "Refugee": {
+      "n": 113,
+      "accuracy": 0.5752,
+      "macro_f1": 0.5702,
+      "per_class_f1": {
+        "hatespeech": 0.5778,
+        "normal": 0.6804,
+        "offensive": 0.4524
+      }
+    },
+    "Women": {
+      "n": 233,
+      "accuracy": 0.6223,
+      "macro_f1": 0.6215,
+      "per_class_f1": {
+        "hatespeech": 0.6118,
+        "normal": 0.6517,
+        "offensive": 0.601
+      }
+    },
+    "Other": {
+      "n": 244,
+      "accuracy": 0.6598,
+      "macro_f1": 0.6315,
+      "per_class_f1": {
+        "hatespeech": 0.5758,
+        "normal": 0.6038,
+        "offensive": 0.7148
+      }
+    }
+  },
+  "class_names": [
+    "hatespeech",
+    "normal",
+    "offensive"
+  ]
+}

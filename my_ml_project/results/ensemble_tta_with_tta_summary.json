@@ -1,0 +1,77 @@
+{
+  "tta": true,
+  "members": [
+    "frozen",
+    "defrost",
+    "crossattn"
+  ],
+  "val_best_threshold": 0.13,
+  "val_best_f1": 0.6227730441518203,
+  "test_at_0.5": {
+    "name": "ENSEMBLE TEST @ 0.5 + TTA",
+    "threshold": 0.5,
+    "accuracy": 0.6023333333333334,
+    "f1_hateful": 0.3484434735117422,
+    "auroc": 0.628769473973607
+  },
+  "test_at_tuned": {
+    "name": "ENSEMBLE TEST @ tuned 0.130 + TTA",
+    "threshold": 0.13,
+    "accuracy": 0.5056666666666667,
+    "f1_hateful": 0.6046387629965343,
+    "auroc": 0.628769473973607
+  },
+  "per_member": {
+    "frozen": {
+      "tuned_threshold": 0.17000000000000004,
+      "test_at_0.5": {
+        "name": "frozen TEST @ 0.5 + TTA",
+        "threshold": 0.5,
+        "accuracy": 0.59,
+        "f1_hateful": 0.4029126213592233,
+        "auroc": 0.6057686491935484
+      },
+      "test_at_tuned": {
+        "name": "frozen TEST @ tuned 0.170 + TTA",
+        "threshold": 0.17000000000000004,
+        "accuracy": 0.49166666666666664,
+        "f1_hateful": 0.5955979846194643,
+        "auroc": 0.6057686491935484
+      }
+    },
+    "defrost": {
+      "tuned_threshold": 0.12000000000000001,
+      "test_at_0.5": {
+        "name": "defrost TEST @ 0.5 + TTA",
+        "threshold": 0.5,
+        "accuracy": 0.6026666666666667,
+        "f1_hateful": 0.3407079646017699,
+        "auroc": 0.6175703354105572
+      },
+      "test_at_tuned": {
+        "name": "defrost TEST @ tuned 0.120 + TTA",
+        "threshold": 0.12000000000000001,
+        "accuracy": 0.517,
+        "f1_hateful": 0.5993917611280066,
+        "auroc": 0.6175703354105572
+      }
+    },
+    "crossattn": {
+      "tuned_threshold": 0.060000000000000005,
+      "test_at_0.5": {
+        "name": "crossattn TEST @ 0.5 + TTA",
+        "threshold": 0.5,
+        "accuracy": 0.608,
+        "f1_hateful": 0.34739178690344064,
+        "auroc": 0.6249484512463344
+      },
+      "test_at_tuned": {
+        "name": "crossattn TEST @ tuned 0.060 + TTA",
+        "threshold": 0.060000000000000005,
+        "accuracy": 0.497,
+        "f1_hateful": 0.5966319165998396,
+        "auroc": 0.6249484512463344
+      }
+    }
+  }
+}

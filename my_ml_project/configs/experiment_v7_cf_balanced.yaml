@@ -1,0 +1,50 @@
+project_name: hatexplain_v7_cf_balanced
+
+# v7 corrects the bias-amplification observed in v6: CF augmentation now
+# applies to ALL three label classes (hate, normal, offensive), not just
+# hate+offensive. Augmenting hate posts alone added more "<group> is evil"
+# examples for the underrepresented groups, which made the gap WORSE
+# (0.22 -> 0.31). Augmenting all classes restores per-group label balance.
+
+data:
+  primary_dataset: hatexplain
+  train_file: train_cf_balanced.jsonl
+  validation_file: validation.jsonl
+  test_file: test.jsonl
+
+task:
+  type: classification
+  num_classes: 3
+  class_names:
+    - hatespeech
+    - normal
+    - offensive
+
+model:
+  backbone: GroNLP/hateBERT
+  max_length: 128
+  dropout: 0.1
+
+training:
+  batch_size: 16
+  learning_rate: 2e-5
+  epochs: 3
+  weight_decay: 0.01
+  use_class_weights: false
+  use_label_confidence: true
+  use_focal_loss: true
+  focal_gamma: 2.0
+  warmup_ratio: 0.06
+  max_grad_norm: 1.0
+
+paths:
+  raw_data_dir: data/raw
+  interim_data_dir: data/interim
+  processed_data_dir: data/processed
+  results_dir: results/v7_cf_balanced
+
+experiment:
+  phase: v7_cf_balanced
+  seed: 42
+  use_rationales: false
+  use_auxiliary_loss: false

@@ -23,6 +23,7 @@ from sklearn.metrics import (
 )
 
 from dataset_memes import HatefulMemesDataset
+from dataset_factory import build_meme_dataset
 from train_multimodal import collate_fn
 
 
@@ -129,11 +130,6 @@ def main():
     results_dir = config["paths"]["results_dir"]
     checkpoint_path = args.checkpoint or os.path.join(results_dir, "checkpoints", "best_model.pt")
 
-    hf_name = config["dataset"]["hf_name"]
-    val_split = config["dataset"]["val_split"]
-    test_split = config["dataset"]["test_split"]
-    local_img_dir = config["dataset"].get("local_img_dir", None)
-    strict_images = config["dataset"].get("strict_images", True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Device:", device)
@@ -144,12 +140,8 @@ def main():
     print(f"Loaded checkpoint from epoch {ckpt['epoch']} (val_auc={ckpt.get('val_auc', '?'):.4f})")
 
     print("\nLoading splits...")
-    val_ds = HatefulMemesDataset(hf_name, val_split, clip_model, text_model, max_length,
-                                 use_image=True, use_text=True,
-                                 local_img_dir=local_img_dir, strict_images=strict_images)
-    test_ds = HatefulMemesDataset(hf_name, test_split, clip_model, text_model, max_length,
-                                  use_image=True, use_text=True,
-                                  local_img_dir=local_img_dir, strict_images=strict_images)
+    val_ds = build_meme_dataset(config, "val")
+    test_ds = build_meme_dataset(config, "test")
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 

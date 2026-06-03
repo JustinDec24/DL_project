@@ -1,0 +1,39 @@
+project_name: harmeme_frozen
+
+dataset:
+  type: harmeme
+  root_dir: C:/Users/decju/OneDrive/Bureau/meme/mmf/data/datasets/memes/defaults
+  fine_grained: false           # binarize: harmful = {somewhat, very}, not_harmful = {not harmful}
+  strict_images: true
+
+task:
+  num_classes: 2
+  class_names:
+    - not_harmful
+    - harmful
+
+model:
+  clip_model: openai/clip-vit-base-patch32
+  text_model: GroNLP/hateBERT
+  max_length: 77
+  dropout: 0.1
+  freeze_encoders: true
+  unfreeze_last_n_layers: 0     # frozen baseline
+  use_image: true
+  use_text: true
+
+training:
+  batch_size: 32
+  learning_rate: 2e-4
+  encoder_lr_multiplier: 1.0    # no encoder updates (frozen)
+  epochs: 15
+  weight_decay: 0.01
+  warmup_ratio: 0.06
+  max_grad_norm: 1.0
+  use_focal_loss: false
+
+paths:
+  results_dir: results/harmeme_frozen
+
+experiment:
+  seed: 42

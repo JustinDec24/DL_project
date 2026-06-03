@@ -1,0 +1,19 @@
+{
+  "model_type": "latefusion",
+  "checkpoint": "results/harmeme_frozen\\checkpoints\\best_model.pt",
+  "val_best_threshold": 0.5100000000000001,
+  "val_best_f1": 0.7428571428571429,
+  "test_at_0.5": {
+    "threshold": 0.5,
+    "accuracy": 0.8163841807909604,
+    "f1_hateful": 0.7509578544061303,
+    "auroc": 0.876647966339411
+  },
+  "test_at_tuned": {
+    "threshold": 0.5100000000000001,
+    "accuracy": 0.8192090395480226,
+    "f1_hateful": 0.7538461538461538,
+    "auroc": 0.876647966339411
+  },
+  "delta_f1": 0.002888299440023556
+}

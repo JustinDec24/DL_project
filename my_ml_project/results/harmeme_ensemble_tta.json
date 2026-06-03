@@ -1,0 +1,77 @@
+{
+  "tta": true,
+  "members": [
+    "frozen",
+    "defrost",
+    "crossattn"
+  ],
+  "val_best_threshold": 0.7000000000000002,
+  "val_best_f1": 0.7384615384615385,
+  "test_at_0.5": {
+    "name": "ENSEMBLE TEST @ 0.5 + TTA",
+    "threshold": 0.5,
+    "accuracy": 0.7853107344632768,
+    "f1_hateful": 0.7361111111111112,
+    "auroc": 0.8909186535764376
+  },
+  "test_at_tuned": {
+    "name": "ENSEMBLE TEST @ tuned 0.700 + TTA",
+    "threshold": 0.7000000000000002,
+    "accuracy": 0.8502824858757062,
+    "f1_hateful": 0.7763713080168776,
+    "auroc": 0.8909186535764376
+  },
+  "per_member": {
+    "frozen": {
+      "tuned_threshold": 0.39000000000000007,
+      "test_at_0.5": {
+        "name": "frozen TEST @ 0.5 + TTA",
+        "threshold": 0.5,
+        "accuracy": 0.8220338983050848,
+        "f1_hateful": 0.7567567567567568,
+        "auroc": 0.8747194950911642
+      },
+      "test_at_tuned": {
+        "name": "frozen TEST @ tuned 0.390 + TTA",
+        "threshold": 0.39000000000000007,
+        "accuracy": 0.8022598870056498,
+        "f1_hateful": 0.75,
+        "auroc": 0.8747194950911642
+      }
+    },
+    "defrost": {
+      "tuned_threshold": 0.49000000000000005,
+      "test_at_0.5": {
+        "name": "defrost TEST @ 0.5 + TTA",
+        "threshold": 0.5,
+        "accuracy": 0.8559322033898306,
+        "f1_hateful": 0.8,
+        "auroc": 0.9066970546984573
+      },
+      "test_at_tuned": {
+        "name": "defrost TEST @ tuned 0.490 + TTA",
+        "threshold": 0.49000000000000005,
+        "accuracy": 0.8587570621468926,
+        "f1_hateful": 0.8062015503875969,
+        "auroc": 0.9066970546984573
+      }
+    },
+    "crossattn": {
+      "tuned_threshold": 0.9000000000000002,
+      "test_at_0.5": {
+        "name": "crossattn TEST @ 0.5 + TTA",
+        "threshold": 0.5,
+        "accuracy": 0.6949152542372882,
+        "f1_hateful": 0.6878612716763006,
+        "auroc": 0.8597124824684432
+      },
+      "test_at_tuned": {
+        "name": "crossattn TEST @ tuned 0.900 + TTA",
+        "threshold": 0.9000000000000002,
+        "accuracy": 0.788135593220339,
+        "f1_hateful": 0.6987951807228916,
+        "auroc": 0.8597124824684432
+      }
+    }
+  }
+}

@@ -14,6 +14,7 @@ from transformers import get_cosine_schedule_with_warmup
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
 from dataset_memes import HatefulMemesDataset
+from dataset_factory import build_meme_dataset
 from model_multimodal import MultimodalMemeClassifier
 
 
@@ -109,11 +110,7 @@ def main():
     use_text = config["model"]["use_text"]
     max_length = config["model"].get("max_length", 77)
 
-    hf_name = config["dataset"]["hf_name"]
-    train_split = config["dataset"]["train_split"]
-    val_split = config["dataset"]["val_split"]
-    local_img_dir = config["dataset"].get("local_img_dir", None)
-    strict_images = config["dataset"].get("strict_images", True)
+    ds_type = config["dataset"].get("type", "hateful_memes")
 
     batch_size = config["training"]["batch_size"]
     lr = float(config["training"]["learning_rate"])
@@ -135,22 +132,19 @@ def main():
     print(f"Freeze encoders: {freeze_encoders}, unfreeze_last_n={unfreeze_last_n_layers}")
     print(f"Focal loss: {use_focal_loss}" + (f" (gamma={focal_gamma})" if use_focal_loss else ""))
 
-    print("Loading datasets...")
-    train_dataset = HatefulMemesDataset(hf_name, train_split, clip_model, text_model, max_length,
-                                        use_image=use_image, use_text=use_text,
-                                        local_img_dir=local_img_dir, strict_images=strict_images)
-    val_dataset = HatefulMemesDataset(hf_name, val_split, clip_model, text_model, max_length,
-                                      use_image=use_image, use_text=use_text,
-                                      local_img_dir=local_img_dir, strict_images=strict_images)
+    print(f"Loading datasets (type={ds_type})...")
+    train_dataset = build_meme_dataset(config, "train")
+    val_dataset = build_meme_dataset(config, "val")
     print(f"Train: {len(train_dataset)} | Val: {len(val_dataset)}")
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
+    num_classes = config["task"].get("num_classes", 2)
     model = MultimodalMemeClassifier(
         clip_model_name=clip_model,
         text_model_name=text_model,
-        num_classes=2,
+        num_classes=num_classes,
         dropout=dropout,
         freeze_encoders=freeze_encoders,
         unfreeze_last_n_layers=unfreeze_last_n_layers,
@@ -239,11 +233,8 @@ def main():
             "val_auc": round(val_auc, 4),
         })
 
-        torch.save(
-            {"epoch": epoch + 1, "model_state_dict": model.state_dict(), "val_auc": val_auc},
-            os.path.join(checkpoint_dir, f"epoch_{epoch+1}.pt"),
-        )
-
+        # Per-epoch checkpoints are heavy (~1 GB each for multimodal) and we
+        # always select on val_auc anyway. Only the best is saved.
         if val_auc > best_val_auc:
             best_val_auc = val_auc
             torch.save(
