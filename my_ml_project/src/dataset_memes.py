@@ -67,18 +67,54 @@ def to_pil_rgb(img, base_dir=None):
 
 class HatefulMemesDataset(Dataset):
     def __init__(self, hf_name, split, clip_model_name, text_model_name,
-                 max_length=77, use_image=True, use_text=True):
+                 max_length=77, use_image=True, use_text=True,
+                 local_img_dir=None, strict_images=True):
         self.use_image = use_image
         self.use_text = use_text
+        self.strict_images = strict_images
         # Load raw dataset — no HFImage casting, we resolve paths ourselves
         self.examples = load_hf_split(hf_name, split)
         self._img_col = _find_image_col(self.examples.features)
-        self._snapshot_dir = _get_snapshot_dir(hf_name) if use_image else None
-        if use_image and self._snapshot_dir:
-            print(f"Image base dir: {self._snapshot_dir}")
+        if use_image:
+            if local_img_dir:
+                self._img_base = os.path.abspath(local_img_dir)
+                print(f"Image base dir (local override): {self._img_base}")
+            else:
+                self._img_base = _get_snapshot_dir(hf_name)
+                print(f"Image base dir (HF snapshot): {self._img_base}")
+            self._verify_image_loading()
+        else:
+            self._img_base = None
         self.clip_processor = CLIPProcessor.from_pretrained(clip_model_name)
         self.tokenizer = AutoTokenizer.from_pretrained(text_model_name)
         self.max_length = max_length
+
+    def _verify_image_loading(self):
+        """Sanity check: probe the first 20 examples and fail loudly if
+        most images can't be resolved. Prevents silently training on the
+        grey placeholder image."""
+        n_probe = min(20, len(self.examples))
+        n_missing = 0
+        for i in range(n_probe):
+            img_field = self.examples[i][self._img_col]
+            if isinstance(img_field, str):
+                rel = img_field
+                base = self._img_base or ""
+                full = rel if os.path.isabs(rel) else os.path.join(base, rel)
+                if not os.path.exists(full):
+                    n_missing += 1
+        if n_missing > 0:
+            msg = (
+                f"WARNING: {n_missing}/{n_probe} sampled image paths do not "
+                f"exist under {self._img_base!r}. Training/inference will use "
+                f"grey placeholder images, making the model effectively text-only. "
+                f"Set local_img_dir in the dataset config to point at the actual "
+                f"Hateful Memes image folder (containing img/*.png)."
+            )
+            if self.strict_images:
+                raise FileNotFoundError(msg)
+            else:
+                print(msg)
 
     def __len__(self):
         return len(self.examples)
@@ -89,7 +125,7 @@ class HatefulMemesDataset(Dataset):
         label = int(ex["label"])
 
         if self.use_image:
-            image = to_pil_rgb(ex[self._img_col], base_dir=self._snapshot_dir)
+            image = to_pil_rgb(ex[self._img_col], base_dir=self._img_base)
             pixel_values = self.clip_processor(
                 images=image, return_tensors="pt"
             )["pixel_values"].squeeze(0)

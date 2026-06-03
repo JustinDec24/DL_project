@@ -5,6 +5,8 @@ dataset:
   train_split: train
   val_split: validation
   test_split: test
+  local_img_dir: null            # set to local Hateful Memes folder (containing img/*.png)
+  strict_images: true
 
 task:
   num_classes: 2

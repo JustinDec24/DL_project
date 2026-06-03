@@ -90,6 +90,8 @@ def main():
     hf_name = config["dataset"]["hf_name"]
     train_split = config["dataset"]["train_split"]
     val_split = config["dataset"]["val_split"]
+    local_img_dir = config["dataset"].get("local_img_dir", None)
+    strict_images = config["dataset"].get("strict_images", True)
 
     batch_size = config["training"]["batch_size"]
     lr = float(config["training"]["learning_rate"])
@@ -116,10 +118,12 @@ def main():
     train_dataset = HatefulMemesDataset(
         hf_name, train_split, clip_model, text_model, max_length,
         use_image=True, use_text=True,
+        local_img_dir=local_img_dir, strict_images=strict_images,
     )
     val_dataset = HatefulMemesDataset(
         hf_name, val_split, clip_model, text_model, max_length,
         use_image=True, use_text=True,
+        local_img_dir=local_img_dir, strict_images=strict_images,
     )
     print(f"Train: {len(train_dataset)} | Val: {len(val_dataset)}")
 

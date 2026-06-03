@@ -5,6 +5,12 @@ dataset:
   train_split: train
   val_split: validation
   test_split: test
+  # IMPORTANT: HF snapshot does NOT contain images, only metadata.
+  # Download the official Hateful Memes dataset from DrivenData
+  # (https://www.drivendata.org/competitions/64/hateful-memes/data/)
+  # and set local_img_dir to the folder that contains "img/*.png".
+  local_img_dir: null            # e.g. C:/Users/decju/datasets/hateful_memes
+  strict_images: true            # error out if images can't be found (avoid silent grey-placeholder bug)
 
 task:
   num_classes: 2

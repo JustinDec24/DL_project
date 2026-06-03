@@ -132,6 +132,8 @@ def main():
     hf_name = config["dataset"]["hf_name"]
     val_split = config["dataset"]["val_split"]
     test_split = config["dataset"]["test_split"]
+    local_img_dir = config["dataset"].get("local_img_dir", None)
+    strict_images = config["dataset"].get("strict_images", True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Device:", device)
@@ -143,9 +145,11 @@ def main():
 
     print("\nLoading splits...")
     val_ds = HatefulMemesDataset(hf_name, val_split, clip_model, text_model, max_length,
-                                 use_image=True, use_text=True)
+                                 use_image=True, use_text=True,
+                                 local_img_dir=local_img_dir, strict_images=strict_images)
     test_ds = HatefulMemesDataset(hf_name, test_split, clip_model, text_model, max_length,
-                                  use_image=True, use_text=True)
+                                  use_image=True, use_text=True,
+                                  local_img_dir=local_img_dir, strict_images=strict_images)
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
