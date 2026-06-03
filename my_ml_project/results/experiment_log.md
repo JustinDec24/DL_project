@@ -29,6 +29,23 @@ Classify internet memes as *hateful* or *not hateful*. Memes combine an image wi
 - Binary: not_hateful (0), hateful (1)
 - Class balance: ~58.7% not_hateful, ~41.3% hateful
 - Each example contains a meme image (RGB) and a short text caption
+- **CRITICAL — images not shipped:** the HuggingFace snapshot only contains
+  JSONL metadata. Images are not bundled (licensing). This silently broke
+  every multimodal run before Exp 24 — see the "grey-placeholder bug"
+  section in Part 2 (cont. cont.). The original Hateful Memes images can
+  no longer be obtained from DrivenData (competition archived).
+
+### HarMeme (Pramanick et al. 2021) — replacement for Hateful Memes
+- Source: `mmf/data/datasets/memes/defaults/` (MMF layout, local images)
+- 3 splits: train (3013) / validation (177) / test (354)
+- 3-class harmfulness labels: `not harmful`, `somewhat harmful`, `very harmful`
+- Binarised for our runs: `harmful = somewhat + very` vs `not_harmful`
+- Class balance (train): 64.7% not_harmful, 35.3% harmful
+- Each example: COVID-themed meme image with text caption (text is also
+  baked into the image as overlay)
+- Compared to Hateful Memes this is 4× smaller and a different topic, but
+  it is the only image-grounded multimodal hate/harm benchmark we could
+  obtain locally
 
 ---
 
@@ -37,17 +54,100 @@ Classify internet memes as *hateful* or *not hateful*. Memes combine an image wi
 ### Backbones used
 - **roberta-base**: General-purpose language model pre-trained on large web text. Strong general baseline.
 - **GroNLP/hateBERT**: BERT model fine-tuned on Reddit's Abusive Language corpus (RAL-E). Specialised for hate speech — the key hypothesis is that domain-specific pre-training gives a head start.
-- **openai/clip-vit-base-patch32**: Vision-language model pre-trained on 400M image-text pairs. Its vision encoder produces 512-dimensional embeddings that capture semantic image content.
+- **openai/clip-vit-base-patch32**: Vision-language model pre-trained on 400M image-text pairs. Its vision encoder produces 768-dimensional patch features (50 tokens: 1 CLS + 7×7 patches) projected to 512-d via `visual_projection`.
+
+### Multimodal fusion architectures
+- **Late fusion (concatenation)** — `src/model_multimodal.py`
+  Take the final CLS embedding from each encoder, concatenate them
+  (1280-d = 512 image + 768 text), feed an MLP head
+  `Linear(1280→256) → ReLU → Dropout → Linear(256→C)`.
+  Cheapest and simplest. The model can only combine modalities at the
+  *output* level.
+- **Bidirectional cross-attention fusion** — `src/model_crossattn.py`
+  Use the full sequence of patch tokens (50) from CLIP and the full sequence
+  of word tokens from HateBERT. Apply `n_fusion_layers` blocks of
+  bidirectional cross-attention: text tokens attend over image patches AND
+  image patches attend over text tokens, each with residual + feed-forward.
+  This models *interaction* between modalities at multiple depths, which
+  the literature identifies as the right inductive bias for memes where
+  the harmful meaning emerges from text+image combination (VisualBERT,
+  MMBT, ViLT).
+
+### Encoder unfreezing (defrost)
+Three policies tested:
+- **Fully frozen** (Exp 15-17, 22, 24): only the head trains (~330k params).
+  Cheapest, exploits pre-training maximally, but caps performance at what
+  the frozen features can express.
+- **Defrost last N transformer blocks** (Exp 20, 21, 25, 26): the last N
+  layers of CLIP vision and HateBERT are unfrozen. Trainable params jump
+  to ~30M for N=2 on late-fusion, ~58M with cross-attention. Risks: the
+  encoder may drift away from its useful pre-trained representations,
+  especially on small datasets, so we use **differential learning rate**:
+  encoder LR = head LR × `encoder_lr_multiplier` (default 0.1 = 10× smaller).
+- **Fully fine-tuned** (HateXplain only — Exp 14): the entire HateBERT is
+  trained end-to-end. The dataset is large enough (15 383 train) to support
+  this without catastrophic forgetting.
 
 ### Training techniques
-- **Label-confidence weighting**: Each training example is weighted by its annotator agreement score. A post that all 3 annotators agreed was hateful contributes fully to the loss; one where only 2/3 agreed contributes 2/3 as much. This prevents the model from over-committing to ambiguous labels.
-- **Focal Loss** (Lin et al., 2017): Modifies cross-entropy to down-weight easy, correctly-classified examples and focus training on hard ones. Formula: `FL = (1 - p_t)^γ × CE`, with γ=2.0. Helps with class imbalance by preventing the majority class from dominating training.
-- **LR warmup + cosine decay**: Learning rate linearly increases for the first 6% of training steps, then decays to 0 following a cosine curve. This avoids training instability at the start and a hard stop at the end.
-- **Gradient clipping** (max_norm=1.0): Clips gradient norms to prevent exploding gradients.
+- **Label-confidence weighting** — Each training example is weighted by its
+  annotator agreement score. A post that all 3 annotators agreed was
+  hateful contributes fully to the loss; one where only 2/3 agreed
+  contributes 2/3 as much. Prevents over-fitting to ambiguous labels.
+  Implementation: `(per_example_loss × confidence).sum() / confidence.sum()`.
+- **Focal Loss** (Lin et al., 2017) — `FL = (1 − p_t)^γ × CE`, γ = 2.0.
+  Down-weights easy correctly-classified examples and forces training to
+  focus on hard ones. Combined with confidence weighting multiplicatively.
+  Consistently produces *zero high-confidence errors* (`p ≥ 0.9` and wrong)
+  on the trained models.
+- **Class-weighted CE** — inverse-frequency weights (Exp 3, 12, 13). Helps
+  the minority "offensive" class with roberta-base; neutral with HateBERT.
+- **Group-aware sample weighting** (Exp 18, 19) — clipped inverse-frequency
+  weights computed on (target_group × class). Failed: amplifies noise on
+  rare cells. Documented negative result.
+- **LR warmup + cosine decay** — LR linearly ramps up over the first 6% of
+  steps, then cosine-decays to 0. Avoids early instability and lets the
+  schedule end gracefully.
+- **Differential learning rate** — when encoders are partially unfrozen,
+  encoder params get `lr × encoder_lr_multiplier` (typically 0.1), head and
+  fusion params keep `lr`. Implemented via AdamW parameter groups.
+- **Gradient clipping** (`max_norm = 1.0`) — clips global gradient norm to
+  prevent the rare exploding update.
 
-### Metric
-- **Macro-F1** for HateXplain (3 classes, unweighted average): penalises equally poor performance on any class, including the minority "offensive" class.
-- **AUROC** (primary) + **binary F1** for Hateful Memes: AUROC measures ranking quality independent of threshold; F1 measures classification at threshold 0.5.
+### Post-training inference techniques (no retraining)
+- **Threshold tuning** — for binary classifiers, sweep thresholds in
+  [0.05, 0.95] on validation and pick the one that maximises F1 on the
+  positive class. Free improvement. Particularly large when the model is
+  miscalibrated (the broken-multimodal models needed threshold 0.06–0.17
+  to recover F1; the HarMeme-defrost model is already well-calibrated and
+  the optimal threshold is 0.7).
+- **Ensembling** — average the softmax probabilities of several
+  independently-trained models, then apply threshold tuning to the
+  averaged distribution. We use uniform weights (each member gets 1/N
+  weight).
+- **Test-time augmentation (TTA)** — at inference time, predict on several
+  augmented variants of the same image (here: original, horizontal flip,
+  5 deterministic crops resized back to 224) and average the probabilities.
+  TTA *hurt* on memes (text overlay is task-relevant and gets cropped /
+  mirrored), confirming TTA is task-specific.
+
+### Bias-mitigation techniques (HateXplain)
+- **Inverse-frequency group weighting** (Exp 18, 19) — failed.
+- **Counterfactual data augmentation** (Exp 28, 29) — for each training
+  row with a clear target group, emit copies that replace the group's
+  lexical hooks with neutral terms from other groups. We tried (a) augment
+  only `hate + offensive` rows and (b) augment all three label classes.
+  Both failed (made the gap worse). Documented in Part 1 (cont.).
+
+### Metrics
+- **Macro-F1** for HateXplain (3 classes, unweighted average across
+  classes): penalises poor performance on the minority *offensive* class,
+  prevents inflating the score by getting only the easy classes right.
+- **AUROC** for binary memes (primary): measures *ranking* quality of the
+  predicted probabilities, threshold-independent. Robust to class imbalance.
+- **Binary F1** on the positive class (memes): measures *classification*
+  performance at a given threshold. F1@0.5 and F1@tuned both reported.
+- **Per-group macro-F1** + worst/best gap (target bias analysis on
+  HateXplain): measures fairness across the 11 target groups.
 
 ---
 
@@ -667,12 +767,22 @@ the closest available image-grounded benchmark.
 Config: `experiment_harmeme_frozen.yaml`
 
 Trainable parameters: 328 450 / 261 088 003 (head only).
+Training dynamics: best val AUROC at epoch 5 (0.8700) — typical for a small
+dataset (3013 train) with a small head; train_loss continues to drop from
+0.58 → 0.29 while val plateaus from epoch 5 onward.
 
 - best val AUROC: **0.8700** (epoch 5)
 - test accuracy: 0.8164
-- test F1 (harmful) @ 0.5: 0.7510
+- test F1 (harmful) @ 0.5: 0.7510 — precision 0.715, recall 0.790
 - test AUROC: 0.8766
 - test F1 (harmful) @ tuned threshold 0.510: 0.7538
+
+Confusion matrix (test, threshold 0.5):
+```
+              pred_not  pred_harm
+true_not       191        39
+true_harm       26        98
+```
 
 Note the tuned threshold (0.510) is almost the default — with real images
 the frozen model is well-calibrated. Compare to the broken-multimodal
@@ -692,16 +802,32 @@ train_loss → 0.013 by epoch 15 (model has memorised the train set).
 Cosine decay + epoch-1 best saving means the right checkpoint is still kept.
 
 - best val AUROC: **0.8987** (epoch 1)
-- test accuracy: 0.8531
-- test F1 (harmful) @ 0.5: **0.8045**
+- test accuracy: 0.8531 (@0.5) → 0.8644 (@tuned)
+- test F1 (harmful) @ 0.5: **0.8045** — precision 0.753, recall 0.863
 - test AUROC: **0.9101**
 - test F1 (harmful) @ tuned threshold 0.700: 0.8033
 
-**Defrosting helps on HarMeme** (+0.034 test AUC over frozen). This is the
-exact OPPOSITE of what we found on the broken Hateful Memes runs, where
-defrosting hurt. With real images, the last two encoder layers have actual
-signal to refine; with grey placeholders, defrosting just destabilised the
-encoders. The bug fix changed the architecture-comparison conclusions.
+Confusion matrix (test, threshold 0.5):
+```
+              pred_not  pred_harm
+true_not       195        35
+true_harm       17       107
+```
+
+**Defrosting helps on HarMeme** (+0.034 test AUC over frozen, +0.054 F1).
+This is the exact OPPOSITE of what we found on the broken Hateful Memes
+runs, where defrosting hurt. With real images, the last two encoder
+layers have actual signal to refine; with grey placeholders, defrosting
+just destabilised the encoders. The bug fix flipped the
+architecture-comparison conclusions.
+
+Diagnostic remarks:
+- The single-epoch peak is a hallmark of fine-tuning on a small dataset:
+  the pre-trained features are already 80% of the way there, and one pass
+  is enough to adapt them. More epochs only over-fit.
+- An ablation that we did not run but should run next: defrost just CLIP
+  (vision-only adaptation) vs defrost just HateBERT (text-only adaptation)
+  to attribute the +0.034 AUC gain between modalities.
 
 ---
 
@@ -709,6 +835,9 @@ encoders. The bug fix changed the architecture-comparison conclusions.
 Config: `experiment_harmeme_crossattn.yaml`
 
 Trainable parameters: 57 889 538 / 290 296 067 (19.9%).
+Architecture: 2 layers of bidirectional cross-attention (8 heads each, 768-d,
+residual + GELU-MLP), then concat of pooled text-CLS and image-CLS,
+two-layer MLP head.
 
 Training: best val AUROC at epoch 3 (0.8814). Crashed at end of epoch 6
 during a per-epoch checkpoint write (`PytorchStreamWriter` enforce-fail
@@ -720,14 +849,30 @@ which keeps each multimodal results dir at ~1 GB instead of ~16 GB.
 
 - best val AUROC: **0.8814** (epoch 3)
 - test accuracy: 0.7062 @ 0.5 → 0.8277 @ tuned
-- test F1 (harmful) @ 0.5: 0.6905
+- test F1 (harmful) @ 0.5: 0.6905 — precision 0.547, recall 0.935
 - test AUROC: 0.8829
 - test F1 (harmful) @ tuned threshold 0.890: 0.7715
 
-Cross-attention is comparable to frozen on AUROC (+0.006) but the model is
-heavily mis-calibrated (best threshold 0.89). It loses to defrost.
-Hypothesis: the cross-attention layers needed more careful initialisation
-or a longer warmup to compete with simple late fusion on this small dataset.
+Confusion matrix (test, threshold 0.5):
+```
+              pred_not  pred_harm
+true_not       134        96
+true_harm        8       116
+```
+
+The @0.5 model is heavily biased toward predicting `harmful` (recall 0.94,
+precision 0.55). Threshold tuning to 0.89 recovers F1 to 0.77 by trimming
+false positives. Cross-attention is comparable to frozen on AUROC (+0.006)
+but lost to defrost.
+
+Hypothesis for the under-performance vs defrost: the 2 cross-attention
+blocks add ~28M randomly-initialised parameters that have to be learned
+from 3013 examples. The earlier broken-multimodal cross-attn (Exp 21) had
+a slight edge over defrost; with real images the opposite is true — more
+fusion machinery competes with the gradient signal that now usefully
+reaches the unfrozen encoder layers. Likely fixes (not run): lower fusion
+LR, more warmup, freezing fusion for the first few epochs while the
+encoders adapt.
 
 ---
 
@@ -848,6 +993,34 @@ was specific to the original group).
 | 28 (v6) | hate+offensive | 27 463 | 12 080 | 0.678 | 0.666 | 0.306 (worse) |
 | 29 (v7) | all labels | 31 425 | 16 042 | 0.665 | 0.640 | 0.265 (worse) |
 
+### Per-group breakdown (test, macro-F1)
+
+Groups sorted by Exp 14 macro-F1 ascending (worst first). Δ-columns show
+the gain/loss of CF vs the no-CF baseline. Asian and Hispanic are the two
+smallest test groups (~50 each) and are also the worst on every model.
+
+| Group     | N   | Exp 14 mF1 | v6 mF1 | Δ v6 vs 14 | v7 mF1 | Δ v7 vs 14 |
+|-----------|-----|------------|--------|------------|--------|-------------|
+| Asian     |  53 | 0.467      | 0.332  | **−0.135** | 0.367  | **−0.100** |
+| Hispanic  |  44 | 0.473      | 0.430  | −0.043     | 0.467  | −0.006     |
+| Jewish    | 210 | 0.509      | 0.545  | +0.036     | 0.474  | −0.035     |
+| Islam     | 238 | 0.584      | 0.523  | −0.061     | 0.529  | −0.055     |
+| African   | 388 | 0.584      | 0.561  | −0.023     | 0.540  | −0.044     |
+| Arab      |  90 | 0.593      | 0.602  | +0.009     | 0.596  | +0.003     |
+| Caucasian | 114 | 0.617      | 0.557  | −0.060     | 0.529  | −0.088     |
+| Homosexual| 223 | 0.619      | 0.617  | −0.002     | 0.624  | +0.005     |
+| Refugee   | 113 | 0.647      | 0.580  | −0.067     | 0.570  | −0.077     |
+| Women     | 233 | 0.664      | 0.629  | −0.035     | 0.622  | −0.042     |
+| Other     | 244 | 0.690      | 0.638  | −0.052     | 0.632  | −0.058     |
+
+**Reading this table:**
+- Asian degrades the most under v6 (−0.135); v7 partially recovers it.
+- Only **Arab, Jewish (v6 only), Homosexual (v7 only)** improve under CF.
+  Every other group, including the previously best-performing `Other`,
+  regresses.
+- v7 is generally less destructive than v6 (negative Δ are smaller) but
+  still **net negative** in 8/11 groups vs the no-CF baseline.
+
 **Two negative results consistent with each other.** Simple lexical
 counterfactual augmentation does not reduce the target-group bias gap on
 HateXplain + HateBERT; both naive policies made it slightly worse. This
@@ -857,9 +1030,29 @@ level is not enough when the model has learned subtle co-occurrence
 patterns at every layer of pre-training (HateBERT's RAL-E corpus contains
 each group together with hateful language at very different rates).
 
-Stronger options that were not explored in this run:
-- **Template-based generation** (not single-token swap) — requires hand-written
-  templates per claim type.
+### Why didn't it work? Three concrete hypotheses
+
+1. **HateBERT's priors are stronger than the augmentation signal.** RAL-E
+   is full of "JEW <hateful claim>" and "MUSLIM <hateful claim>"
+   co-occurrences. Adding ~1 100 synthetic "Asian <hateful claim>" examples
+   doesn't move the needle on the encoder's deep representation of the
+   word "asian". The augmentation never reaches the encoder layers, which
+   are fine-tuned anyway and have learned the bias before fine-tuning.
+2. **The lexical-hook detector is too crude.** Single-token matching misses
+   multi-word references ("south asian", "sub-saharan african") and
+   inflected forms not in our vocabulary. Of 9 132 eligible rows in v6,
+   only 6 040 had a detected hook — i.e. ~33% of hateful posts about a
+   group never get a CF copy because the augmenter can't tell the group
+   is mentioned.
+3. **Substitution introduces label noise.** Some posts use group-specific
+   slurs that, when replaced by a neutral term for another group, no
+   longer make sense or change meaning ("kikes" → "muslims" in an
+   idiomatic insult). HateBERT can detect this; the gradient pushes
+   *against* the augmented signal.
+
+### Stronger options not explored in this run
+- **Template-based generation** (not single-token swap) — requires
+  hand-written templates per claim type.
 - **Counterfactual data from a generative model** — ask an LLM to rewrite
   each post with a different target group while preserving the harmful
   claim structure. Much more expensive but produces fluent text.
@@ -902,21 +1095,273 @@ Focal loss consistently produced zero high-confidence errors across all experime
 **4. Class weights create offensive/normal trade-off with roberta-base, but not with HateBERT.**
 With roberta-base, class weights boost offensive recall at the cost of normal precision (normal→offensive confusion increases). HateBERT is robust to this: adding or removing class weights changes performance by <0.003. Domain-specific representations already encode the class boundaries implicitly.
 
-**5. For hateful memes, image information dominates text.**
-AUROC 0.671 (image-only) vs 0.610 (text-only). Meme captions are deliberately ambiguous; the visual content carries the hateful meaning. This has implications for content moderation systems that rely on text alone.
+**5. For hateful memes, image information dominates text.** ⚠️ **INVALIDATED by Exp 24 onward.**
+AUROC 0.671 (image-only) vs 0.610 (text-only) was the result on the broken
+HF dataset where image features were uniform grey (`(128, 128, 128)`) for
+every example — i.e. effectively zero information. The 0.061 "gap" was
+just noise in the random head. On the corrected HarMeme run (Exp 24-26)
+this experiment was not redone with single-modality ablations because
+HarMeme has only 354 test examples and the modality-ablation contrast
+would not be statistically meaningful.
 
 **6. Fairness bias in hate speech models is resistant to simple re-weighting.**
 The bias analysis revealed a 0.22 macro-F1 gap between the best-performing target group (Other, 0.690) and worst (Asian, 0.467). The model has learned spurious shortcuts associating racial/ethnic group names with hatespeech labels, reflecting training data composition rather than genuine understanding. Inverse-frequency group weighting (Exp 18 & 19) failed to close this gap and degraded overall performance by ~3.5pp. This is consistent with the literature: addressing this bias requires more representative data per group, not re-weighting.
 
-**7. For hateful memes, adding model capacity does not help; cross-attention does (marginally).**
-Defrosting the last 2 layers of CLIP + HateBERT (Exp 20) failed to improve over the frozen baseline in an apples-to-apples comparison (Exp 22). Cross-attention fusion (Exp 21) was the only architectural change that improved test AUROC (+0.019 over local frozen control). The gain is real but modest: with 12,887 examples, additional capacity overfits before it generalises. Significant further gains likely require either more data (e.g., MMHS150K), OCR-augmented text, or a larger jointly-pretrained vision-language model (BLIP, FLAVA).
+**7. For hateful memes, adding model capacity does not help; cross-attention does (marginally).** ⚠️ **INVALIDATED by Exp 24-26.**
+This was the conclusion when the encoders trained on grey placeholders.
+On HarMeme with real images, **defrost is clearly the best architecture**
+(test AUC 0.910 vs 0.877 frozen vs 0.883 cross-attention). The "more
+capacity doesn't help" conclusion held only because there was no useful
+visual signal for the extra capacity to refine — see lesson 9 for the
+corrected story.
 
-**8. Threshold tuning is the single biggest free win on imbalanced binary classification.**
-On all three multimodal checkpoints (frozen, defrost, cross-attention) the default 0.5 threshold yields F1 hateful 0.34–0.40, but a threshold tuned on validation (in [0.06, 0.17]) yields F1 hateful ≈ 0.60 — a +0.19 to +0.26 absolute improvement at zero retraining cost. After threshold tuning, the three models converge to F1 ≈ 0.60: most of the visible "AUROC gap" disappears at the operating-point level, meaning it was really a calibration gap. Lesson: always tune the decision threshold for imbalanced classification before reporting F1.
+**8. Threshold tuning is the single biggest free win on imbalanced binary classification.** ⚠️ **PARTIALLY OUTDATED by Exp 24-26.**
+On the broken multimodal models, threshold tuning gave +0.20 F1 hateful
+because the models were severely miscalibrated (optimal threshold 0.06–0.17).
+On the corrected HarMeme runs the frozen and defrost models are
+well-calibrated (optimal threshold 0.51 and 0.70 respectively, F1 gain
+under +0.01) and only the cross-attention model still benefits significantly
+(+0.08 F1, threshold 0.89). Lesson refined: threshold tuning is a free win
+**when** the model is miscalibrated; on well-calibrated models the gain is
+near-zero. Always check the optimal threshold to know whether tuning is
+needed.
+
+**9. (NEW) On a real multimodal benchmark, defrost > frozen > cross-attention.**
+Exp 24-26 on HarMeme reverse lesson 7. With 3013 training examples and
+real images, the cleanest setup is unfreezing the last 2 layers of CLIP
+and HateBERT with a 10× lower encoder LR, keeping the simple concat fusion.
+This gives test AUC 0.910 (+0.034 vs frozen). Cross-attention adds 28M
+randomly-initialised fusion parameters; on this dataset size, those
+parameters compete with the gradient signal that would otherwise reach
+the now-trainable encoder layers, and the model under-performs.
+
+**10. (NEW) Defrost peaks at epoch 1 on small datasets.**
+On HarMeme (3013 train), Exp 25 reached its best val AUROC at the very
+first epoch (0.8987). Subsequent epochs only over-fit. This is a hallmark
+of fine-tuning a strong pre-trained model on a small dataset: pretraining
+already does 80% of the work, one pass over the data is enough to adapt
+it, more epochs just memorise.
+
+**11. (NEW) TTA is task-dependent. On memes with text overlay, it hurts.**
+Horizontal flip + 5 deterministic crops degraded ensemble F1 by 0.024 on
+HarMeme (Exp 27b vs 27a). Reason: the discriminative text overlay is part
+of the image — flips mirror it, crops drop it. TTA assumes invariance to
+the augmentation that doesn't hold for tasks where the image *contains*
+information about the label.
+
+**12. (NEW) Naive lexical counterfactual augmentation does not reduce
+bias on HateXplain.**
+Both Exp 28 (hate-only) and Exp 29 (all-label) augmentation policies
+INCREASED the bias gap (0.22 → 0.31 and 0.22 → 0.27 respectively).
+HateBERT's deep priors about group co-occurrence with hateful language
+override the surface-level token substitutions. Reducing this bias
+requires either much more careful augmentation (LLM rewrites, adversarial
+debiasing) or more data for under-represented groups.
+
+**13. (NEW) Silent dataset bugs are dangerous; build assertive loaders.**
+Every "multimodal" experiment before Exp 24 was effectively text-only
+because `HatefulMemesDataset` silently returned a 128-grey placeholder
+when an image file was missing. The bug went undetected through 8
+experiments and would have stayed in the headline numbers if not caught.
+Fix and lesson: loaders should fail loudly on missing data
+(`strict_images: true` in `dataset_memes.py`), and any "multimodal" model
+should be sanity-checked by verifying that
+`torch.flip(pixel_values, dims=[3])` changes the output logits.
+
+**14. (NEW) Always sanity-check the per-epoch checkpoint policy on disk.**
+The default policy saved every epoch as a 1 GB `.pt` file. Across 4
+multimodal runs × 15 epochs = 60 GB used silently. This eventually filled
+the 953 GB C: drive and corrupted the cross-attention training mid-epoch.
+Fixed: only `best_model.pt` is kept now.
 
 ## Remaining limitations
 
-- **Offensive class is structurally hard** (F1≈0.535): defined negatively as "not hateful, not normal", leading to symmetric confusion in both directions. This is a labelling ambiguity issue, not purely a modelling failure.
-- **Hateful meme recall is low at threshold 0.5** (0.40) but is largely recoverable by threshold tuning (0.87–0.90 recall after tuning, at the cost of precision ~0.45). The fundamental bottleneck for joint precision+recall is dataset size and pre-training scope, not the operating point.
-- **Capacity scaling does not help** without more data: Exp 20 and Exp 21 both confirm that adding 90×–180× trainable parameters on 12k examples does not beat (Exp 20) or only marginally beats (Exp 21) a 328k-parameter frozen-encoder baseline.
-- **Racial/ethnic group bias** (see bias analysis): the model over-predicts hate for posts mentioning racial/ethnic minorities. A production system would require targeted data collection and debiasing.
+- **Offensive class is structurally hard** (F1≈0.535): defined negatively as
+  "not hateful, not normal", leading to symmetric confusion in both
+  directions. This is a labelling ambiguity issue, not purely a modelling
+  failure.
+- **Original Hateful Memes benchmark is not reproducible locally**: the HF
+  snapshot ships metadata only and DrivenData has archived the source.
+  HarMeme is the closest available image-grounded multimodal benchmark but
+  is smaller (3013 vs 8500 train) and on a different topic (COVID vs
+  generic memes), so absolute numbers should not be compared to the
+  literature.
+- **HarMeme is small** (3013 / 177 / 354). Validation has only 177 examples
+  — a single misclassified borderline meme changes val F1 by ~0.5%. Be
+  cautious about ranking models by val score alone.
+- **Racial/ethnic group bias on HateXplain remains**. The model still
+  over-predicts hate for posts mentioning racial/ethnic minorities. Neither
+  group-aware re-weighting (Exp 18-19) nor counterfactual augmentation
+  (Exp 28-29) closed the gap. The remaining honest path is targeted data
+  collection and adversarial debiasing.
+- **No single-modality ablation on HarMeme.** We did not redo "text only"
+  vs "image only" vs "both" on HarMeme because the test set is too small
+  for the contrast to be informative. The relative-contribution claim from
+  Exp 15-17 was invalidated by the grey-placeholder bug; we do not replace
+  it with a new claim.
+
+---
+
+---
+
+# Appendix A — Cross-cutting observations
+
+These are patterns we noticed across multiple experiments. They are weaker
+than the numbered "key lessons learned" above (which are tied to specific
+quantitative results) but useful for context.
+
+### A1. Pretraining quality matters more than architecture cleverness
+- HateBERT vs roberta-base on the same dataset: +0.12 val F1 with zero
+  architectural change.
+- Cross-attention vs late-fusion on memes: −0.03 AUC on real images
+  (Exp 25 vs Exp 26). Architecture cleverness only pays off when there is
+  enough data to learn the new parameters; otherwise it competes with
+  pretraining.
+- The single most cost-effective improvement we tested was "switch
+  roberta-base to HateBERT". The architectural changes (focal loss, class
+  weights, cross-attention, group-weights, CF augmentation) collectively
+  added much less.
+
+### A2. Small datasets reward parameter efficiency
+- The frozen baseline on HarMeme (328k trainable) reaches AUC 0.877 in 5
+  epochs. The cross-attention model (58M trainable) reaches AUC 0.881 in
+  3 epochs and then overfits. More parameters → faster overfit → smaller
+  effective gain.
+- The "best" defrost on HarMeme is *less* defrost: only the last 2 layers,
+  with encoder LR 10× lower than head LR. Unfreezing more layers with
+  equal LR would saturate the gradient signal and over-fit faster.
+
+### A3. Per-class trade-offs are sharp on 3-class HateXplain
+- Adding class weights (Exp 12) boosted offensive F1 by 0.027 but cost
+  normal F1 0.038 (more normal→offensive confusion).
+- The offensive↔normal confusion is symmetric in both directions on every
+  trained model. This is not a modelling failure but a definitional
+  ambiguity: "offensive" is "not hateful, not normal", which is hard for
+  the model and for human annotators (HateXplain reports 33% annotator
+  disagreement on offensive labels).
+
+### A4. Bias is multi-scale; surface fixes don't generalise
+- Group-weighted loss (Exp 18-19, varying weights from 1 to 5): failed.
+- Counterfactual lexical augmentation (Exp 28-29, doubling training data):
+  failed.
+- Even the per-group post-hoc analysis (analyze_target_bias.py) is itself
+  noisy on small groups: Asian and Hispanic each have ~50 test examples,
+  so ±0.05 F1 is well within sampling noise. The *consistency* of the
+  ranking across experiments is the real signal.
+
+### A5. "Free" inference tricks vary widely in value
+- Threshold tuning: huge on miscalibrated models (+0.20 F1), near-zero on
+  calibrated ones (+0.003 F1).
+- Ensembling weak + strong: pulls down the strong member (HarMeme:
+  ensemble AUC 0.899 vs defrost-alone 0.910). Useful only when members
+  are comparable.
+- TTA: image-domain TTA *hurts* when the image contains text overlay.
+  Lesson — don't reach for inference tricks blindly; verify on validation
+  first.
+
+---
+
+# Appendix B — Reproducibility
+
+All experiments use `seed = 42` set in PyTorch, NumPy, and Python's `random`.
+Reproducibility is deterministic up to PyTorch's CUDA non-determinism (cuDNN
+convolutions and reduction ops); expect val F1 to vary ±0.003 between runs
+on the same machine.
+
+### Environment
+- Python 3.12.0 (pyenv-win)
+- torch 2.6.0 + CUDA 12.4
+- transformers 5.9.0
+- datasets 3.6.0
+- pyarrow 15.0.2 (note: pyarrow 24.x is INCOMPATIBLE with torch 2.6.0
+  + datasets 3.6.0 → segfault on `from datasets import load_dataset`
+  when torch is already imported; downgrading was required).
+- GPU: NVIDIA RTX 3060 (12 GB VRAM).
+
+### Workspace layout
+```
+my_ml_project/
+├── configs/               YAML, one per experiment
+├── data/
+│   ├── raw/               HateXplain HF snapshot
+│   └── processed/         Preprocessed JSONL (train, val, test,
+│                          train_cf, train_cf_balanced)
+├── src/
+│   ├── prepare_data.py             HateXplain HF → JSONL with confidence + rationales
+│   ├── counterfactual_augment.py   CF augmentation generator
+│   ├── dataset.py                  HateXplain torch Dataset
+│   ├── dataset_memes.py            Hateful Memes (HF metadata + local images)
+│   ├── dataset_harmeme.py          HarMeme (local MMF-style layout)
+│   ├── dataset_factory.py          Dispatch between dataset_memes and dataset_harmeme
+│   ├── model.py                    TransformerClassifier (text)
+│   ├── model_multimodal.py         CLIP+HateBERT with late-fusion concat
+│   ├── model_crossattn.py          CLIP+HateBERT with bidirectional cross-attention
+│   ├── train.py                    HateXplain trainer
+│   ├── train_multimodal.py         Multimodal trainer (late fusion)
+│   ├── train_crossattn.py          Multimodal trainer (cross-attention)
+│   ├── evaluate.py                 HateXplain test set evaluator
+│   ├── evaluate_multimodal.py      Multimodal test set evaluator
+│   ├── threshold_tune.py           Tune threshold on val, evaluate on test
+│   ├── ensemble_eval.py            Uniform ensemble + optional TTA
+│   ├── analyze_target_bias.py      Per-group bias analysis
+│   └── demo.py                     Gradio live demo (text + meme tabs)
+└── results/
+    ├── experiment_log.md           This file
+    └── <run_name>/                 One per experiment
+        ├── checkpoints/best_model.pt
+        ├── training_log.json
+        ├── threshold_tuned_summary.json (memes only)
+        └── target_bias_analysis.json (HateXplain bias runs)
+```
+
+### Reproducing the best results
+
+```bash
+# 1. Install dependencies (force pyarrow < 16 to avoid the torch segfault)
+pip install -r requirements.txt
+pip install "pyarrow<16"
+
+# 2. Prepare HateXplain processed data
+python src/prepare_data.py
+
+# 3. Best HateXplain model (Exp 14) — test macro-F1 0.683
+python src/train.py     --config configs/experiment_v4b_hatebert_noweights.yaml
+python src/evaluate.py  --config configs/experiment_v4b_hatebert_noweights.yaml \
+                        --run_id <timestamp_from_train>
+
+# 4. Best multimodal model (Exp 25, HarMeme) — test AUC 0.910, F1 0.803
+# (Requires the HarMeme dataset locally at the path in the config.)
+python src/train_multimodal.py --config configs/experiment_harmeme_defrost.yaml
+python src/threshold_tune.py   --config configs/experiment_harmeme_defrost.yaml \
+                               --model_type latefusion
+
+# 5. Counterfactual augmentation (negative results — Exp 28, 29)
+python src/counterfactual_augment.py --input data/processed/train.jsonl \
+                                     --output data/processed/train_cf.jsonl \
+                                     --n_cf 2 --labels hate_offensive
+python src/counterfactual_augment.py --input data/processed/train.jsonl \
+                                     --output data/processed/train_cf_balanced.jsonl \
+                                     --n_cf 2 --labels all
+python src/train.py                --config configs/experiment_v6_cf_augment.yaml
+python src/train.py                --config configs/experiment_v7_cf_balanced.yaml
+python src/analyze_target_bias.py  --config configs/experiment_v7_cf_balanced.yaml \
+                                   --run_id <timestamp>
+
+# 6. Live demo (Gradio, two tabs: text + meme)
+pip install gradio pillow
+python src/demo.py \
+    --text_checkpoint results/v4b_hatebert_noweights/<timestamp>/checkpoints/best_model.pt \
+    --meme_checkpoint results/harmeme_defrost/checkpoints/best_model.pt
+```
+
+### Validating image loading (avoid the silent grey-placeholder bug)
+Before trusting any new multimodal model, run:
+```python
+import torch
+batch = next(iter(val_loader))
+flipped = torch.flip(batch["pixel_values"], dims=[3])
+out_orig = model(pixel_values=batch["pixel_values"], ...)
+out_flip = model(pixel_values=flipped, ...)
+assert not torch.allclose(out_orig["logits"], out_flip["logits"]), \
+    "Model is flip-invariant — images are likely grey placeholders!"
+```
