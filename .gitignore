@@ -29,3 +29,15 @@ Thumbs.db
 # Counterfactual-augmented training data — reproducible via
 # src/counterfactual_augment.py from the committed train.jsonl
 my_ml_project/data/processed/train_cf*.jsonl
+
+# LaTeX build artefacts (keep .tex and .pdf only)
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Course material — not part of this project
+L12_EE-559_2026.pdf
