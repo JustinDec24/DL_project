@@ -10,6 +10,7 @@ from sklearn.metrics import (
 )
 
 from dataset_memes import HatefulMemesDataset
+from dataset_factory import build_meme_dataset
 from model_multimodal import MultimodalMemeClassifier
 from train_multimodal import collate_fn
 
@@ -30,15 +31,12 @@ def main():
     dropout = config["model"]["dropout"]
     freeze_encoders = config["model"]["freeze_encoders"]
     unfreeze_last_n_layers = config["model"].get("unfreeze_last_n_layers", 0)
-    use_image = config["model"]["use_image"]
-    use_text = config["model"]["use_text"]
-    max_length = config["model"].get("max_length", 77)
-
-    hf_name = config["dataset"]["hf_name"]
-    test_split = config["dataset"]["test_split"]
+    use_image = config["model"].get("use_image", True)
+    use_text = config["model"].get("use_text", True)
 
     batch_size = config["training"]["batch_size"]
     class_names = config["task"]["class_names"]
+    num_classes = config["task"].get("num_classes", 2)
     results_dir = config["paths"]["results_dir"]
     checkpoint_path = os.path.join(results_dir, "checkpoints", "best_model.pt")
 
@@ -46,14 +44,13 @@ def main():
     print("Using device:", device)
 
     print("Loading test set...")
-    test_dataset = HatefulMemesDataset(hf_name, test_split, clip_model, text_model, max_length,
-                                       use_image=use_image, use_text=use_text)
+    test_dataset = build_meme_dataset(config, "test")
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
     model = MultimodalMemeClassifier(
         clip_model_name=clip_model,
         text_model_name=text_model,
-        num_classes=2,
+        num_classes=num_classes,
         dropout=dropout,
         freeze_encoders=freeze_encoders,
         unfreeze_last_n_layers=unfreeze_last_n_layers,
