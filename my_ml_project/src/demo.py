@@ -127,7 +127,17 @@ def main():
         action="store_true",
         help="Generate a temporary public Gradio URL",
     )
+    parser.add_argument(
+        "--meme_classes",
+        type=str,
+        default="not_hateful,hateful",
+        help="Comma-separated class names for the meme model (in label order). "
+             "Use 'not_harmful,harmful' when the checkpoint is a HarMeme model.",
+    )
     args = parser.parse_args()
+
+    global MEME_CLASSES
+    MEME_CLASSES = [c.strip() for c in args.meme_classes.split(",")]
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
